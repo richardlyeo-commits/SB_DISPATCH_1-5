@@ -1,11 +1,5 @@
-<!-- 버전: 20261111-01 -->
-<!-- 변경: ① 중도 변동을 회사 시스템(입퇴사발령 관리)처럼 "일자·형태·성명·노선·차량·조"로 입력 -->
-<!--       ② 표를 엑셀 모양으로 (자리별 묶음 순서, 마5번--> / 5-2번 메모, 전달 3일 칸, 합계 줄, 구분별 합계) -->
-<!--       ③ 지원 기사 명단(근무 0.0)을 표 맨 아래에 표시 ④ 이름 칸에 영어로 쳐도 한글로 자동 변환 -->
-<!-- 수정(03): Caps Lock이 켜져 있어도 이름이 쌍자음(ㄲㄸㅃㅆㅉ)으로 바뀌지 않게 보정하고, 켜져 있으면 경고를 보여 줍니다 -->
-<!-- 수정(06): [+자리 추가]를 [+ 새 자리] 로 바꾸고, 같은 자리를 두 번 만들면 [+교대]를 쓰라고 안내 -->
-<!-- 수정(05): 3번(명단)과 4번(입사·발령·퇴사)을 한 표로 합침 — 한 줄 = 한 사람, [+교대]로 같은 자리를 물려줌. 스페어는 배정 차량 없음 -->
-<!-- 수정(04): 지원 기사 명단 삭제, 노선 칸은 "나가는 사람이 어디로 이동하는지"만 입력(들어오는 사람의 출발 노선은 입력·표시 안 함) -->
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!-- 버전: 20261117-13 -->
 <!-- 목적: 코드를 고치지 않고 화면에서 옵션(대수, 명단, 변동)을 입력해 1-5번 배차표를 자동으로 만듭니다 -->
 <!DOCTYPE html>
 <html lang="ko">
@@ -19,7 +13,7 @@
   h3 { font-size: 15px; margin: 10px 0 4px; }
   fieldset { margin: 0 0 8px 0; border: 1px solid #999; padding: 6px 12px 8px; }
   legend { font-weight: bold; font-size: 14px; }
-  input, select, textarea { font-size: 15px; padding: 3px 4px; font-family: inherit; }
+  input, select { font-size: 15px; padding: 3px 4px; }
   input[type=number] { width: 56px; }
   button { font-size: 14px; padding: 4px 12px; margin: 3px 4px 3px 0; cursor: pointer; }
   .큰버튼 { background: #1a73e8; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 16px; padding: 7px 18px; }
@@ -27,39 +21,44 @@
   table.입력표 td, table.입력표 th { padding: 2px 5px; font-size: 13px; }
   .작은글씨 { color: #555; font-size: 12px; margin: 4px 0; }
   p { margin: 4px 0; }
-  input:disabled, select:disabled { background: #e9e9e9; color: #999; }
-  tr.자리시작 td { border-top: 2px solid #888; }          /* 새 자리가 시작되는 줄 위에 굵은 선 */
-  tr.이어짐 { background: #f4f8ff; }                      /* 같은 자리를 이어받은 줄은 연한 파란 바탕 */
-  tr.이어짐 .자리칸 { color: #888; font-size: 12px; }
-  button.작은버튼 { font-size: 11px; padding: 1px 5px; margin: 0 1px; }
-  button.교대 { background: #1a73e8; color: white; border: none; border-radius: 3px; font-weight: bold; }
+  #명단본문 tr.끄는중 { opacity: 0.4; }      /* 마우스로 끌고 있는 줄은 흐리게 보이게 합니다 */
+  .끌기 { cursor: grab; text-align: center; }
+  .끌기:active { cursor: grabbing; }
+  .손잡이 { display: inline-block; width: 16px; height: 2px; background: #888; margin: 7px auto 0; box-shadow: 0 5px 0 #888, 0 10px 0 #888; }   /* 글자 대신 CSS로 그린 줄 3개짜리 손잡이 모양 (어느 글꾴에서도 확실히 보입니다) */
 
-  /* 배차표(결과)는 엑셀처럼 작게 보여 줍니다 */
+  /* ----- 배차명령서(인쇄용) 모양 ----- */
+  .명령서랩 { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }   /* flex로 바꾼: 마지막 줄이 5개를 못 채워도, 남는 카드들이 늘어나면서 고루루 책 두 낌 같은 빈 공백이 안 생깁니다 */
+  .명령서카드 { border: 1px solid #333; flex: 1 1 23%; }   /* 기본은 한 줄에 4개정도(23%씨), 남은 공간은 서로 나눠 늘어납니다 */
+  .명령서카드 .날짜줄 { text-align: center; font-weight: bold; padding: 4px; color: #fff; background: #555; }
+  .명령서카드.토 .날짜줄 { background: #1a73e8; }      /* 토요일: 파랑 */
+  .명령서카드.일 .날짜줄 { background: #d32f2f; }      /* 일요일·공휴일: 빨강 */
+  .명령서카드 table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .명령서카드 td, .명령서카드 th { border: 1px solid #ccc; padding: 2px 4px; text-align: center; }
+  @media print {
+    body * { visibility: hidden; }                 /* 인쇄할 때는 배차명령서만 보이게 나머지를 숨깁니다 */
+    #명령서자리, #명령서자리 * { visibility: visible; }
+    #명령서자리 { position: absolute; left: 0; top: 0; width: 100%; }
+    .명령서카드 { page-break-inside: avoid; break-inside: avoid; }   /* 카드 하나가 페이지 중간에서 잘리지 않게 합니다 */
+    .명령서랩 { height: 100vh; align-content: space-between; }     /* 줄(줄바꿈 된 줄)들 사이의 남는 세로 공간을 고르게 나눠 밑으로도 마지막 줄이 내려가게 해서, 페이지 아래쪽에 남는 빈 공백을 줄입니다 */
+    @page { size: A4; margin: 5mm; }                                  /* 용지 바깥마다의 여백도 8mm에서 5mm로 줄였습니다 */
+  }
+
+  /* 배차표(결과)는 작게 보여 줍니다 */
   table.표 { border-collapse: collapse; font-size: 12px; margin-top: 4px; }
-  table.표 td, table.표 th { border: 1px solid #333; padding: 1px 3px; text-align: center; min-width: 20px; height: 20px; }
-  table.표 th { background: #f3f3f3; }
-  .토 { background: #cfe8fb !important; }
-  .일 { background: #fbdccc !important; }
-  .전달 { color: #666; }
-  table.표 tr.스페어첫줄 td { border-top: 3px solid red; }       /* 스페어 줄 묶음의 맨 위 빨간 선 */
-  table.표 tr.스페어끝줄 td { border-bottom: 3px solid red; }    /* 스페어 줄 묶음의 맨 아래 빨간 선 */
+  table.표 td, table.표 th { border: 1px solid #333; padding: 1px 3px; text-align: center; min-width: 20px; }
+  .토 { background: #cfe8fb; }
+  .일 { background: #fbdccc; }
+  .스페어줄 td { border-top: 3px solid red; border-bottom: 3px solid red; }
   .휴 { color: #b00; font-weight: bold; }
   .희망 { color: #6a1b9a; font-weight: bold; }
-  .메모 { text-align: left !important; color: #1a237e; font-weight: bold; white-space: nowrap; }
-  .지원줄 td { color: #555; }
-  .합계줄 td { font-weight: bold; background: #f2f2f2; }
-  .미달 { color: red; font-weight: bold; }
-  .근무일수칸 { background: #e2f0d9; font-weight: bold; }
-  table.작은표 td, table.작은표 th { min-width: 60px; }
   .경고 { color: red; font-weight: bold; }
   .정상 { color: green; font-weight: bold; }
 </style>
 </head>
 <body>
 
-<h2>1-5번 배차표 만들기 <span style="font-size:14px; color:#666; font-weight:normal;">버전 20261111-01</span></h2>
-<div id="캡스안내" class="경고" style="display:none">⚠ Caps Lock(대문자 고정)이 켜져 있습니다. 이름은 자동으로 보정해서 입력되지만, 숫자·다른 칸에서는 꺼 주세요.</div>
-<p class="작은글씨">사용 순서: ① 아래 옵션·명단 확인 → ② 월중에 입사·발령·퇴사가 있으면 4번 칸에 입력 → ③ [배차표 만들기] 클릭 → ④ 다 쓴 뒤 [다음 달 설정으로 넘기기] 클릭 (전달 순번·휴무가 자동으로 이어집니다)</p>
+<h2>1-5번 배차표 만들기 <span style="font-size:14px; color:#666; font-weight:normal;">버전 20261117-13</span></h2>
+<p class="작은글씨">사용 순서: ① 아래 옵션을 확인·수정 → ② [배차표 만들기] 클릭 → ③ 다 쓴 뒤 [다음 달 설정으로 넘기기] 클릭 (전달 순번·휴무가 자동으로 이어집니다)</p>
 
 <fieldset>
   <legend>1. 기본 옵션</legend>
@@ -82,25 +81,32 @@
 </fieldset>
 
 <fieldset>
-  <legend>3. 기사 명단과 월중 교대 (한 줄 = 한 사람)</legend>
+  <legend>3. 기사 명단 (표에 나오는 순서대로, 자리 7개)</legend>
   <table class="입력표">
-    <thead><tr><th>조</th><th>배정<br>차량</th><th>이름</th><th>교대일<br>(처음 근무)</th><th>나가는 날<br>(후임 없을 때)</th><th>이동 노선<br>(다른 노선으로 갈 때)</th><th>전달 마지막<br>순번</th><th>전달(<span class="전월">?</span>월)<br>마지막 근무일*</th><th>전달(<span class="전월">?</span>월)<br>마지막 휴무일*</th><th>희망 휴무일 (휴)**</th><th></th></tr></thead>
+    <thead><tr><th title="마우스로 끌어서 순서를 바꿀 수 있습니다">↕</th><th>이름</th><th>조</th><th>차량</th><th>전달 마지막 순번</th><th>전달(<span class="전월">?</span>월)<br>마지막 근무일*</th><th>전달(<span class="전월">?</span>월)<br>마지막 휴무일*</th><th>희망 휴무일 (휴)**</th><th></th></tr></thead>
     <tbody id="명단본문"></tbody>
   </table>
-  <button id="자리추가">+ 새 자리 (차량이 늘어날 때만)</button>
-  <p class="작은글씨">
-  · <b>월중에 기사가 바뀌면 → 나가는 사람 줄의 [+교대]</b>를 누르세요. 바로 아래에 연한 파란 줄이 생깁니다. 거기에 새 사람 이름과 <b>처음 근무하는 날</b>만 적으면 됩니다(조·차량은 자동으로 이어받습니다).<br>
-  · <b>[+ 새 자리]</b>는 차량이 한 대 늘어 <b>자리 자체가 새로 생길 때만</b> 씁니다. 사람만 바뀌는 경우에는 쓰지 마세요.<br>
-  · 자리의 첫 줄은 전달부터 계속 근무하는 사람이라 <b>교대일 칸이 잠깁니다</b>.<br>
-  · <b>나가는 날</b>은 뒤에 들어올 사람이 아직 없을 때만 적습니다. 그날부터 그 자리는 공석이 됩니다. 뒷사람을 [+교대]로 넣었으면 비워 두세요.<br>
-  · <b>이동 노선</b>은 다른 노선으로 갈 때만 적습니다(예: 5-2번, 87번). 그냥 그만두면 비워 둡니다.<br>
-  · 스페어는 배정 차량이 없어 차량 칸이 잠깁니다.<br>
-  * 전달의 날짜(1~31)를 적습니다. 예) 전달 31일에 마지막으로 근무했으면 31. [다음 달 설정으로 넘기기]를 쓰면 자동으로 채워집니다.<br>
-  ** 기사가 쉬고 싶다고 한 날짜를 쉼표로 적습니다. 예) 17, 25. 표에 "휴"로 표시되고 먼저 확정됩니다. 소장님이 임의로 정하는 휴무는 "ㅎ"로 표시됩니다.</p>
+  <button id="명단추가">+ 기사 추가</button>
+  <p class="작은글씨">표 왼쪽의 <b>≡ 모양(줄 3개짜리)</b> 위에 마우스를 올리고 누른 채 위아래로 끌면 기사 순서를 바꿀 수 있습니다.<br>
+  * 전달의 날짜(1~31)를 적습니다. 예) 전달 31일에 마지막으로 근무했으면 31. 기록이 없는 신규 기사는 비워 두세요. [다음 달 설정으로 넘기기]를 쓰면 이 칸들이 자동으로 채워집니다.<br>** 이번 달 안에서 기사가 쉬고 싶다고 한 날짜를 쉼표로 적습니다. 예) 17, 25. 표에 "휴"로 표시되고 먼저 확정됩니다. 소장님이 임의로 정하는 휴무는 "ㅎ"로 표시됩니다.</p>
 </fieldset>
 
+<fieldset>
+  <legend>4. 중도 변동 (월중에 기사가 바뀐 경우만)</legend>
+  <table class="입력표">
+    <thead><tr><th>새 사람이 처음 근무하는 날</th><th>바뀌는 자리(원래 이름)</th><th>새 사람 (비우면 공석)</th><th></th></tr></thead>
+    <tbody id="변동본문"></tbody>
+  </table>
+  <button id="변동추가">+ 변동 추가</button>
+</fieldset>
+<fieldset>
+  <legend>5. 배차명령서 시간표 (순번별 출발 시간, 고정값)</legend>
+  순1 시간 <input type="text" id="시간1" style="width:60px" value="4:50">
+  &nbsp; 순2 시간 <input type="text" id="시간2" style="width:60px" value="5:45">
+  &nbsp; 순3 시간 <input type="text" id="시간3" style="width:60px" value="6:40">
+  &nbsp;|&nbsp; 예비차 번호 <input type="text" id="예비차" style="width:70px" value="1465"> (스페어 기사가 일할 때 쓰는 차)
+</fieldset>
 <datalist id="이름들"></datalist>
-<datalist id="차량들"></datalist>
 
 <button class="큰버튼" id="만들기">배차표 만들기</button>
 <button id="다음달">다음 달 설정으로 넘기기</button>
@@ -109,9 +115,13 @@
 <div id="안내줄" class="작은글씨"></div>
 <h3 id="제목"></h3>
 <div id="표자리"></div>
-<div id="합계자리"></div>
 <h3>자동 검산 결과</h3>
 <div id="검산"></div>
+
+<h3>배차명령서 (A4 인쇄용, 토=파랑·일=빨강)</h3>
+<button id="명령서버튼">배차명령서 만들기</button>
+<button id="인쇄버튼">인쇄하기</button>
+<div id="명령서자리"></div>
 
 <script>
 /* ============================================================
@@ -127,7 +137,6 @@ function 계산(설정) {
   var 월 = 설정.월;
   if (isNaN(연도) || isNaN(월) || 월 < 1 || 월 > 12) { return {오류들: ["연도와 월을 확인해 주세요."]}; }
   var 마지막날 = new Date(연도, 월, 0).getDate();      // 그 달의 마지막 날짜
-  var 전월일수 = new Date(연도, 월 - 1, 0).getDate();  // 전달이 며칠까지 있는지
 
   // ----- 명단을 복사해서 사용합니다 (원본은 건드리지 않습니다) -----
   var 기사들 = [];
@@ -143,35 +152,32 @@ function 계산(설정) {
     var 근무일 = parseInt(k.마지막근무일, 10);
     var 휴무일 = parseInt(k.마지막휴무일, 10);
     if (근무일 > 0 || 휴무일 > 0) { 오류들.push(이름 + ": 전달 날짜가 전달의 마지막 날을 넘었습니다. 전달 날짜를 확인해 주세요."); }
-    var 순번값 = (isNaN(순번) || 순번 < 1 || 순번 > 3) ? 1 : 순번;
-    var 근무값 = isNaN(근무일) ? -99 : 근무일;
-    var 휴무값 = isNaN(휴무일) ? -99 : 휴무일;
+    // 희망 휴무일("17, 25")을 숫자 목록으로 바꿉니다
+    var 희망목록 = [];
+    String(k.희망휴무 || "").split(/[^0-9]+/).forEach(function (조각) {
+      if (조각 == "") { return; }
+      var 희망날 = parseInt(조각, 10);
+      if (희망날 < 1 || 희망날 > 마지막날) { 오류들.push(이름 + ": 희망 휴무일 " + 희망날 + "일은 이 달에 없는 날짜입니다."); return; }
+      if (희망목록.indexOf(희망날) < 0) { 희망목록.push(희망날); }
+    });
     기사들.push({
+      희망: 희망목록,
       이름: 이름, 조: k.조, 차량: String(k.차량 || "").trim(),
-      마지막순번: 순번값,                  // 비었으면 1로 시작
-      마지막근무일: 근무값,                // 비었으면 "오래전에 근무"
-      마지막휴무일: 휴무값,
-      전달순번: 순번값, 전달근무일: 근무값, 전달휴무일: 휴무값    // 표의 "전달 3일 칸"에 보여 주려고 처음 값을 따로 보관
+      마지막순번: (isNaN(순번) || 순번 < 1 || 순번 > 3) ? 1 : 순번,   // 비었으면 1로 시작
+      마지막근무일: isNaN(근무일) ? -99 : 근무일,                    // 비었으면 "오래전에 근무"
+      마지막휴무일: isNaN(휴무일) ? -99 : 휴무일
     });
   });
   if (스페어수 > 1) { 오류들.push("스페어는 1명만 지원합니다."); }
-
-  // ----- 희망 휴무일("17, 25")을 사람 이름별로 정리합니다 (교대로 들어온 사람도 포함) -----
-  var 희망맵 = {};          // {이름: [17, 25]}
-  var 사용한희망 = {};      // 실제로 "휴"로 반영된 날짜를 적어 둡니다
-  for (var 사람이름 in (설정.희망 || {})) {
-    (function (이름, 글자) {
-      var 희망목록 = [];
-      String(글자 || "").split(/[^0-9]+/).forEach(function (조각) {
-        if (조각 == "") { return; }
-        var 희망날 = parseInt(조각, 10);
-        if (희망날 < 1 || 희망날 > 마지막날) { 오류들.push(이름 + ": 희망 휴무일 " + 희망날 + "일은 이 달에 없는 날짜입니다."); return; }
-        if (희망목록.indexOf(희망날) < 0) { 희망목록.push(희망날); }
-      });
-      희망맵[이름] = 희망목록;
-      사용한희망[이름] = {};
-    })(사람이름, 설정.희망[사람이름]);
-  }
+  var 변동 = [];
+  설정.변동.forEach(function (c) {
+    var 날짜 = parseInt(c.날짜, 10);
+    var 자리 = String(c.자리 || "").trim();
+    var 새사람 = String(c.새사람 || "").trim();
+    if (isNaN(날짜) || 날짜 < 1 || 날짜 > 마지막날) { 오류들.push("변동의 날짜가 올바르지 않습니다: " + c.날짜); return; }
+    if (!이름모음[자리]) { 오류들.push("변동의 자리 이름이 명단에 없습니다: " + 자리); return; }
+    변동.push({날짜: 날짜, 자리: 자리, 새사람: 새사람});
+  });
 
   // ----- 날짜마다 필요 대수와 근무 조를 정합니다 -----
   var 날 = {};
@@ -211,6 +217,7 @@ function 계산(설정) {
   // 근무조는 하루씩 번갈아 바뀝니다. 이번 달 1일의 조를 알면 전달 어느 날이 어느 조였는지 알 수 있습니다.
   var 첫날조 = 날[1].조;
   var 반대조 = (첫날조 == "A") ? "B" : "A";
+  var 전월일수 = new Date(연도, 월 - 1, 0).getDate();
   기사들.forEach(function (기사) {
     if (기사.조 == "스페어") { return; }                       // 스페어는 조가 바뀌므로 검사하지 않습니다
     [["근무", 기사.마지막근무일], ["휴무", 기사.마지막휴무일]].forEach(function (쌍) {
@@ -246,18 +253,24 @@ function 계산(설정) {
     });
   });
 
-  // ----- 자리 변경: 합친 표에서 "어느 자리를 누가 며칠부터" 가 이미 정해져서 들어옵니다 -----
-  var 전체변동 = (설정.자리변경 || []).slice();     // [{날짜, 자리, 새사람}] — 새사람이 ""이면 그날부터 공석
-  var 떠남메모 = 설정.떠남메모 || {};               // {이름: {날짜, 노선}} — 다른 노선으로 간 사람
-
-  // 주인(자리, 일) : "그 자리를 그날 누가 맡고 있나?"를 알려 주는 함수입니다
+  // ----- 변동 처리: 날짜별로 자리의 주인을 바꿉니다 -----
+  var 전체변동 = 변동.slice();
+  변동.forEach(function (c) {
+    var 다른자리주인 = 기사들.some(function (k) { return k.이름 == c.새사람 && k.이름 != c.자리; });
+    if (다른자리주인) { 전체변동.push({날짜: c.날짜, 자리: c.새사람, 새사람: ""}); }   // 그 사람의 원래 자리는 비게 됩니다
+  });
   function 주인(자리, 일) {
-    var 이름 = 자리;                      // 처음에는 명단의 첫 사람이 주인입니다
-    전체변동.filter(function (c) { return c.자리 == 자리; })      // 이 자리의 변경만 골라서
-            .sort(function (a, b) { return a.날짜 - b.날짜; })    // 날짜 순서대로 놓고
-            .forEach(function (c) { if (c.날짜 <= 일) { 이름 = c.새사람; } });  // 그날까지 반영합니다
+    var 이름 = 자리;
+    전체변동.filter(function (c) { return c.자리 == 자리; })
+            .sort(function (a, b) { return a.날짜 - b.날짜; })
+            .forEach(function (c) { if (c.날짜 <= 일) { 이름 = c.새사람; } });
     return 이름;
   }
+
+  // ----- 희망 휴무(휴) 준비: 사람 이름으로 신청 날짜를 찾을 수 있게 정리합니다 -----
+  var 희망맵 = {};
+  var 사용한희망 = {};
+  기사들.forEach(function (k) { 희망맵[k.이름] = k.희망; 사용한희망[k.이름] = {}; });
 
   // ----- 날짜 순서대로 휴무자와 순번을 정합니다 -----
   var 결과 = {};
@@ -369,13 +382,13 @@ function 계산(설정) {
   }
 
   // 신청했는데 그날 근무하는 조가 아니어서 반영되지 않은 "휴"를 알려 줍니다
-  for (var 희망이름 in 희망맵) {
-    희망맵[희망이름].forEach(function (d) {
-      if (!사용한희망[희망이름][d]) {
-        경고들.push(희망이름 + ": 희망 휴무 " + d + "일은 이 기사가 근무하는 날이 아니거나 자리가 바뀌어서 반영되지 않았습니다.");
+  기사들.forEach(function (k) {
+    k.희망.forEach(function (d) {
+      if (!사용한희망[k.이름][d]) {
+        경고들.push(k.이름 + ": 희망 휴무 " + d + "일은 이 기사가 근무하는 날이 아니거나 자리가 바뀌어서 반영되지 않았습니다.");
       }
     });
-  }
+  });
 
   // ----- 화면에 보여 줄 사람(행) 목록 -----
   var 원래이름들 = 기사들.map(function (k) { return k.이름; });
@@ -388,62 +401,28 @@ function 계산(설정) {
     }
   });
 
-  // 자리마다 "처음 맡은 사람"을 알아 둡니다 (차량번호는 처음 사람 줄에만 표시: 엑셀과 같은 방식)
-  var 첫주인 = {};
-  기사들.forEach(function (k) {
-    var p = 주인(k.이름, 1);
-    for (var d = 2; p == "" && d <= 마지막날; d++) { p = 주인(k.이름, d); }
-    첫주인[k.이름] = p;
-  });
-
   var 행들 = [];
   var 일수합계 = {};
-  사람목록.forEach(function (이름, 순서) {
-    var 근무일 = 0, 칸 = [], 조들 = [], 첫날 = 99, 끝자리 = 99;
+  사람목록.forEach(function (이름) {
+    var 근무일 = 0, 칸 = [], 조들 = [], 차량들 = [], 첫자리 = null;
     for (var 일 = 1; 일 <= 마지막날; 일++) {
       var 값;
-      기사들.forEach(function (k, 번호) {
+      기사들.forEach(function (k) {
         if (주인(k.이름, 일) == 이름 && 결과[k.이름][일] !== undefined) {
           값 = 결과[k.이름][일];
+          if (첫자리 == null) { 첫자리 = k; }
           if (조들[조들.length - 1] != k.조) { 조들.push(k.조); }
-          끝자리 = 번호;                                   // 마지막으로 일한 자리(그 줄을 어느 묶음에 둘지 정합니다)
+          if (k.차량 != "" && 차량들.indexOf(k.차량) < 0) { 차량들.push(k.차량); }
         }
       });
-      if (값 !== undefined && 첫날 == 99) { 첫날 = 일; }
       if (typeof 값 == "number") { 근무일++; }
       칸.push(값);
       값 = undefined;
     }
-    if (끝자리 == 99 && 원래이름들.indexOf(이름) >= 0) { 끝자리 = 원래이름들.indexOf(이름); }
     일수합계[이름] = 근무일;
-
-    var 차량들 = [];
-    기사들.forEach(function (k) {
-      if (첫주인[k.이름] == 이름 && k.차량 != "" && 차량들.indexOf(k.차량) < 0) { 차량들.push(k.차량); }
-    });
-
-    // 전달 마지막 3일(예: 29, 30, 31일) 칸: 명단에 적은 "마지막 근무일(순번)"과 "마지막 휴무일"만 보여 줍니다
-    var 전달칸 = ["", "", ""];
-    기사들.forEach(function (k) {
-      if (k.이름 != 이름) { return; }
-      for (var i = 0; i < 3; i++) {
-        var 상대 = -2 + i;
-        if (k.전달근무일 == 상대) { 전달칸[i] = k.전달순번; }
-        else if (k.전달휴무일 == 상대) { 전달칸[i] = "ㅎ"; }
-      }
-    });
-
-    var 떠남 = 떠남메모[이름];
-    var 조칸 = 조들.join("→");
-    if (떠남 && 떠남.노선 != "") { 조칸 = "->" + 떠남.노선.replace(/번$/, ""); }     // 엑셀처럼 ->5-2
-
-    행들.push({이름: 이름, 차량: 차량들.join("/"), 조표시: 조칸, 근무일: 근무일, 칸: 칸, 전달칸: 전달칸,
-               스페어줄: (끝자리 < 99 && 기사들[끝자리].조 == "스페어"),
-               끝자리: 끝자리, 첫날: 첫날, 순서: 순서,
-               떠남: 떠남});
+    행들.push({이름: 이름, 차량: 차량들.join("/"), 조표시: 조들.join("→"), 근무일: 근무일, 칸: 칸,
+               스페어줄: (첫자리 != null && 첫자리.조 == "스페어")});
   });
-  // 줄 순서: 자리 순서대로 묶고, 같은 자리 안에서는 먼저 일한 사람이 위로 (엑셀과 같은 모양)
-  행들.sort(function (a, b) { return (a.끝자리 - b.끝자리) || (a.첫날 - b.첫날) || (a.순서 - b.순서); });
 
   // ----- 주인이 없는 날(공석) 찾기 -----
   var 공석행들 = [];
@@ -467,10 +446,10 @@ function 계산(설정) {
   var 변동사람 = {};
   전체변동.forEach(function (c) { 변동사람[c.자리] = true; if (c.새사람 != "") { 변동사람[c.새사람] = true; } });
   var 안내들 = [];
-  for (var 안내이름 in 사용한희망) {
-    var 반영 = Object.keys(사용한희망[안내이름]).sort(function (a, b) { return a - b; });
-    if (반영.length > 0) { 안내들.push(안내이름 + ": 희망 휴무(휴) 반영 " + 반영.join(", ") + "일"); }
-  }
+  기사들.forEach(function (k) {
+    var 반영 = Object.keys(사용한희망[k.이름]).sort(function (a, b) { return a - b; });
+    if (반영.length > 0) { 안내들.push(k.이름 + ": 희망 휴무(휴) 반영 " + 반영.join(", ") + "일"); }
+  });
   사람목록.forEach(function (이름) {
     if (변동사람[이름]) { 안내들.push(이름 + ": 중도 변동자 (근무 " + 일수합계[이름] + "일, 만근 검사 제외)"); }
     else if (일수합계[이름] != 설정.만근일수) { 경고들.push(이름 + ": 근무 " + 일수합계[이름] + "일 (목표 " + 설정.만근일수 + "일)"); }
@@ -486,27 +465,11 @@ function 계산(설정) {
     for (var n = 1; n <= 날[일].대수; n++) { 정답.push(n); }
     if (번호들.join() != 정답.join()) { 경고들.push(일 + "일: 순번이 1~" + 날[일].대수 + "로 딱 맞지 않습니다 (" + 번호들.join(",") + ")"); }
   }
-
-  // ----- 표 아래쪽 합계: 하루에 실제 근무하는 인원, 구분별(토·일·평일) 필요 대수 -----
   var 총필요 = 0;
-  var 일별합계 = {};
-  // [수정 20261111-01] "특별한 날"로 지정한 날짜는 요일과 상관없이 따로 셉니다
-  var 구분 = {"토요일": {일수: 0, 대수: 0}, "일요일": {일수: 0, 대수: 0}, "평일": {일수: 0, 대수: 0}, "특별한 날": {일수: 0, 대수: 0}};
-  for (var 일 = 1; 일 <= 마지막날; 일++) {
-    총필요 += 날[일].대수;
-    var 이름표;
-    if (설정.예외대수[일] !== undefined) { 이름표 = "특별한 날"; }           // ① 요일보다 먼저 확인
-    else { 이름표 = (날[일].요일 == 6) ? "토요일" : (날[일].요일 == 0 ? "일요일" : "평일"); }
-    구분[이름표].일수++;
-    구분[이름표].대수 += 날[일].대수;
-    var 개수 = 0;
-    행들.forEach(function (행) { if (typeof 행.칸[일 - 1] == "number") { 개수++; } });
-    일별합계[일] = 개수;
-  }
+  for (var 일 = 1; 일 <= 마지막날; 일++) { 총필요 += 날[일].대수; }
 
-  return {오류들: [], 연도: 연도, 월: 월, 마지막날: 마지막날, 전월일수: 전월일수, 날: 날, 기사들: 기사들, 결과: 결과,
-          행들: 행들, 공석행들: 공석행들, 경고들: 경고들, 안내들: 안내들, 주인: 주인,
-          총필요: 총필요, 일별합계: 일별합계, 구분: 구분};
+  return {오류들: [], 연도: 연도, 월: 월, 마지막날: 마지막날, 날: 날, 기사들: 기사들, 결과: 결과,
+          행들: 행들, 공석행들: 공석행들, 경고들: 경고들, 안내들: 안내들, 주인: 주인, 총필요: 총필요};
 }
 
 // 다음달설정(R, 설정) : 이번 달 끝 상태를 다음 달 "전달 값"으로 옮겨 줍니다
@@ -519,121 +482,21 @@ function 다음달설정(R, 설정) {
   var 첫날조 = (마지막조 == "A") ? "B" : "A";               // 다음 달 1일은 반대 조
   새.A조날 = (첫날조 == "A") ? "홀수" : "짝수";             // 1일은 홀수이므로
   var 공석번호 = 0;
-  // 자리마다 "이번 달 마지막에 그 자리를 맡고 있던 사람"이 다음 달의 첫 줄이 됩니다
-  새.줄들 = R.기사들.map(function (k) {
+  새.기사들 = R.기사들.map(function (k) {
     var 주인이름 = R.주인(k.이름, R.마지막날);
     if (주인이름 == "") { 공석번호++; 주인이름 = "공석" + 공석번호; }
     return {
-      이어짐: false, 이름: 주인이름, 조: k.조, 차량: k.차량,
-      교대일: "", 나가는날: "", 이동노선: "",
+      이름: 주인이름, 조: k.조, 차량: k.차량,
       마지막순번: k.마지막순번,
       마지막근무일: Math.max(-99, k.마지막근무일 - R.마지막날),   // 이번 달 날짜를 "전달 기준"으로 바꿉니다
       마지막휴무일: Math.max(-99, k.마지막휴무일 - R.마지막날),
       희망휴무: ""
     };
   });
-  delete 새.기사들; delete 새.자리변경; delete 새.떠남메모; delete 새.희망;
+  새.변동 = [];
   새.토요일대수 = {};
   새.예외대수 = {};
   return 새;
-}
-
-/* ============================================================
-   [A-2] 합친 표 풀기: 화면의 "한 줄 = 한 사람" 표를 계산이 쓰는 모양으로 바꿉니다
-   ============================================================ */
-
-// 합친표를설정으로(설정) : 설정.줄들 을 읽어 설정.기사들 / 자리변경 / 떠남메모 / 희망 을 만들어 줍니다
-function 합친표를설정으로(설정) {
-  var 오류 = [];
-  var 기사들 = [], 자리변경 = [], 떠남메모 = {}, 희망 = {};
-
-  // 1) 줄들을 "자리" 묶음으로 나눕니다. 이어짐이 아닌 줄이 자리의 첫 줄(머리)입니다
-  var 자리들 = [];
-  (설정.줄들 || []).forEach(function (r, i) {
-    var 줄 = {
-      이름: String(r.이름 || "").trim(),
-      조: r.조, 차량: (r.조 == "스페어") ? "" : String(r.차량 || "").trim(),   // 스페어는 배정 차량이 없습니다
-      교대일: parseInt(r.교대일, 10),
-      나가는날: parseInt(r.나가는날, 10),
-      이동노선: String(r.이동노선 || "").trim(),
-      희망휴무: String(r.희망휴무 || "").trim(),
-      마지막순번: r.마지막순번, 마지막근무일: r.마지막근무일, 마지막휴무일: r.마지막휴무일,
-      입력순서: i
-    };
-    if (!r.이어짐 || 자리들.length == 0) { 자리들.push({조: 줄.조, 차량: 줄.차량, 사람들: [줄]}); }
-    else {
-      var 끝자리 = 자리들[자리들.length - 1];
-      줄.조 = 끝자리.조; 줄.차량 = 끝자리.차량;        // 이어지는 줄은 윗 자리의 조·차량을 그대로 씁니다
-      끝자리.사람들.push(줄);
-    }
-  });
-
-  // 1-2) 같은 자리(조+차량)를 두 번 만들었는지 봅니다
-  //      [+교대] 대신 [+ 새 자리]를 눌러 사람을 넣으면 여기서 걸립니다
-  var 본자리 = {};
-  자리들.forEach(function (자리) {
-    if (자리.조 != "스페어" && 자리.차량 == "") { return; }     // 차량을 아직 안 적었으면 견주지 않습니다
-    var 열쇠 = 자리.조 + "/" + 자리.차량;
-    var 보임 = (자리.조 == "스페어") ? "스페어 자리" : (자리.조 + "조 " + 자리.차량);
-    if (본자리[열쇠]) {
-      오류.push(보임 + "가 두 번 있습니다. 월중에 기사가 바뀐 것이라면 [+ 새 자리]로 만들지 말고, " +
-                "원래 줄(" + 본자리[열쇠] + ")의 [+교대]를 눌러 바로 아래에 넣어 주세요.");
-    } else { 본자리[열쇠] = 자리.사람들[0].이름 || "첫 줄"; }
-  });
-
-  // 2) 자리마다: 첫 사람은 명단으로, 그다음 사람들은 "자리 변경"으로 만듭니다
-  자리들.forEach(function (자리) {
-    var 자리이름 = (자리.조 == "스페어") ? "스페어 자리" : (자리.조 + "조 " + (자리.차량 || "(차량 없음)"));
-    // 시작일(처음 근무하는 날)을 정합니다. 첫 사람은 1일(=전달부터 계속)
-    자리.사람들.forEach(function (p, 번호) {
-      if (번호 == 0) {
-        if (!isNaN(p.교대일) && p.교대일 > 1) { 오류.push(자리이름 + " " + p.이름 + ": 자리의 첫 줄은 교대일을 비워 두세요(전달부터 계속 근무하는 사람)."); }
-        p.시작일 = 1;
-      } else if (isNaN(p.교대일) || p.교대일 < 2) {
-        오류.push(자리이름 + " " + (p.이름 || "(공석)") + ": 교대로 들어온 줄은 처음 근무하는 날을 2일 이상으로 적어야 합니다.");
-        p.시작일 = 1; p.날짜오류 = true;                 // 이미 안내했으므로 뒤따르는 안내는 내지 않습니다
-      } else { p.시작일 = p.교대일; }
-    });
-    자리.사람들.sort(function (a, b) { return (a.시작일 - b.시작일) || (a.입력순서 - b.입력순서); });
-
-    var 첫 = 자리.사람들[0];
-    if (첫.이름 == "") { 오류.push(자리이름 + ": 첫 줄의 이름이 비어 있습니다."); return; }
-    기사들.push({이름: 첫.이름, 조: 자리.조, 차량: 자리.차량,
-                마지막순번: 첫.마지막순번, 마지막근무일: 첫.마지막근무일, 마지막휴무일: 첫.마지막휴무일});
-
-    자리.사람들.forEach(function (p, 번호) {
-      if (p.희망휴무 != "" && p.이름 != "") {                      // 희망 휴무는 사람 이름으로 모읍니다
-        희망[p.이름] = 희망[p.이름] ? (희망[p.이름] + "," + p.희망휴무) : p.희망휴무;
-      }
-      var 다음 = 자리.사람들[번호 + 1];
-      // 이 사람이 자리를 떠나는 날을 정합니다
-      var 떠나는날 = null;
-      if (!isNaN(p.나가는날)) {                                     // 나가는 날을 직접 적은 경우
-        if (p.나가는날 < 2) { 오류.push(자리이름 + " " + p.이름 + ": 나가는 날은 2일 이상으로 적어 주세요."); }
-        else if (다음 && p.나가는날 > 다음.시작일) {
-          오류.push(자리이름 + ": " + p.이름 + " 나가는 날(" + p.나가는날 + "일)이 다음 사람 교대일(" + 다음.시작일 + "일)보다 늦습니다. 두 날짜를 확인해 주세요.");
-          떠나는날 = 다음.시작일;                          // 안내는 한 번만 내고, 교대일을 기준으로 봅니다
-        } else { 떠나는날 = p.나가는날; }
-      } else if (다음) { 떠나는날 = 다음.시작일; }                   // 안 적었으면 다음 사람이 들어오는 날
-
-      if (떠나는날 != null && (!다음 || 떠나는날 < 다음.시작일)) {   // 뒤가 비면(또는 사이가 뜨면) 그날부터 공석
-        자리변경.push({날짜: 떠나는날, 자리: 첫.이름, 새사람: ""});
-      }
-      if (다음) {                                                   // 다음 사람이 들어옵니다 (이름이 비었으면 공석 줄)
-        자리변경.push({날짜: 다음.시작일, 자리: 첫.이름, 새사람: 다음.이름});
-        if (다음.시작일 == p.시작일 && !p.날짜오류 && !다음.날짜오류) { 오류.push(자리이름 + ": " + 다음.시작일 + "일에 교대가 두 번 겹칩니다."); }
-      }
-      if (p.이동노선 != "") {                                       // 다른 노선으로 간 사람: 표에 "5-2번"으로 보여 줍니다
-        if (떠나는날 == null) { 오류.push(자리이름 + " " + p.이름 + ": 이동 노선을 적었으면 나가는 날을 적거나, [+교대]로 뒷사람 줄을 넣어 주세요."); }
-        else { 떠남메모[p.이름] = {날짜: 떠나는날, 노선: p.이동노선}; }
-      }
-    });
-  });
-
-  var 새설정 = {};
-  for (var 열쇠 in 설정) { 새설정[열쇠] = 설정[열쇠]; }
-  새설정.기사들 = 기사들; 새설정.자리변경 = 자리변경; 새설정.떠남메모 = 떠남메모; 새설정.희망 = 희망;
-  return {설정: 새설정, 오류: 오류};
 }
 
 /* ============================================================
@@ -643,22 +506,19 @@ function 합친표를설정으로(설정) {
 var 처음설정 = {
   연도: 2026, 월: 11, 평일대수: 3, 일요일대수: 2, 만근일수: 12,
   A조날: "짝수", 스페어전반조: "A", 전반마지막날: 15,
-  토요일대수: {7: 3, 14: 3, 21: 3, 28: 3}, 예외대수: {},
-  // 한 줄 = 한 사람. 이어짐: true 는 윗 자리를 이어받은(교대로 들어온) 사람입니다
-  줄들: [
-    {이어짐: false, 이름: "이현우", 조: "A",     차량: "1151", 교대일: "",  나가는날: "", 이동노선: "",      마지막순번: 2, 마지막근무일:  0, 마지막휴무일:  -6, 희망휴무: "22"},
-    {이어짐: false, 이름: "김재섭", 조: "A",     차량: "1513", 교대일: "",  나가는날: "", 이동노선: "",      마지막순번: 2, 마지막근무일: -2, 마지막휴무일:   0, 희망휴무: ""},
-    {이어짐: false, 이름: "김경호", 조: "A",     차량: "1512", 교대일: "",  나가는날: "", 이동노선: "",      마지막순번: 3, 마지막근무일: -2, 마지막휴무일: -14, 희망휴무: ""},
-    {이어짐: false, 이름: "김해랑", 조: "스페어", 차량: "",     교대일: "",  나가는날: "", 이동노선: "",      마지막순번: 2, 마지막근무일: -1, 마지막휴무일:  -5, 희망휴무: ""},
-    {이어짐: true,  이름: "박재준", 조: "스페어", 차량: "",     교대일: 2,   나가는날: "", 이동노선: "",      마지막순번: "", 마지막근무일: "", 마지막휴무일: "", 희망휴무: ""},
-    {이어짐: true,  이름: "정수한", 조: "스페어", 차량: "",     교대일: 10,  나가는날: "", 이동노선: "",      마지막순번: "", 마지막근무일: "", 마지막휴무일: "", 희망휴무: ""},
-    {이어짐: false, 이름: "김대성", 조: "B",     차량: "1151", 교대일: "",  나가는날: "", 이동노선: "",      마지막순번: 1, 마지막근무일: -1, 마지막휴무일:  -3, 희망휴무: "15"},
-    {이어짐: false, 이름: "강경식", 조: "B",     차량: "1512", 교대일: "",  나가는날: "", 이동노선: "5-2번", 마지막순번: 2, 마지막근무일: -3, 마지막휴무일:  -1, 희망휴무: ""},
-    {이어짐: true,  이름: "박태석", 조: "B",     차량: "1512", 교대일: 7,   나가는날: "", 이동노선: "",      마지막순번: "", 마지막근무일: "", 마지막휴무일: "", 희망휴무: ""},
-    {이어짐: false, 이름: "노승권", 조: "B",     차량: "1513", 교대일: "",  나가는날: "", 이동노선: "87번",  마지막순번: 3, 마지막근무일: -1, 마지막휴무일:  -7, 희망휴무: ""},
-    {이어짐: true,  이름: "김해랑", 조: "B",     차량: "1513", 교대일: 3,   나가는날: "", 이동노선: "",      마지막순번: "", 마지막근무일: "", 마지막휴무일: "", 희망휴무: ""}
-  ]
+  토요일대수: {7: 3, 14: 3, 21: 3, 28: 2}, 예외대수: {},
+  기사들: [
+    {이름: "이현우", 조: "A",     차량: "1151", 마지막순번: 2, 마지막근무일:  0, 마지막휴무일: -6},
+    {이름: "김재섭", 조: "A",     차량: "1513", 마지막순번: 2, 마지막근무일: -2, 마지막휴무일:  0},
+    {이름: "김경호", 조: "A",     차량: "1512", 마지막순번: 1, 마지막근무일:  0, 마지막휴무일: -14},
+    {이름: "김혜랑", 조: "스페어", 차량: "",     마지막순번: 2, 마지막근무일: -1, 마지막휴무일: -5},
+    {이름: "김대성", 조: "B",     차량: "1151", 마지막순번: 1, 마지막근무일: -1, 마지막휴무일: -3},
+    {이름: "강경식", 조: "B",     차량: "1512", 마지막순번: 2, 마지막근무일: -3, 마지막휴무일: -1},
+    {이름: "노승권", 조: "B",     차량: "1513", 마지막순번: 3, 마지막근무일: -1, 마지막휴무일: -7}
+  ],
+  변동: []
 };
+
 var 마지막결과 = null;     // 가장 최근에 만든 배차표 (다음 달로 넘길 때 사용)
 var 저장이름 = "배차설정_1-5번";
 
@@ -714,112 +574,114 @@ function 토요일칸그리기(기존) {
   }
 }
 
-// --- 명단 표: 줄 하나 만들기 ---
-function 줄만들기(r) {
-  r = r || {이어짐: false, 이름: "", 조: "A", 차량: "", 교대일: "", 나가는날: "", 이동노선: "",
-            마지막순번: "", 마지막근무일: "", 마지막휴무일: "", 희망휴무: ""};
+// --- 명단 표 줄 만들기/지우기 ---
+// ----- 마우스로 끌어서 기사 순서 바꾸기 (드래그 앤 드롭) -----
+var 끌리는줄 = null;   // 지금 마우스로 끌고 있는 <tr>을 기억해 두는 변수입니다
+
+function 드래그시작(e) {
+  끌리는줄 = e.currentTarget;                   // 어떤 줄을 끄는지 저장합니다
+  e.currentTarget.classList.add("끄는중");       // 끄는 동안 그 줄을 흐리게 보이게 합니다
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", "");     // 일부 브라우저는 데이터가 있어야 드래그가 동작합니다
+}
+function 드래그오버(e) {
+  e.preventDefault();                            // 이게 있어야 줄을 놓을 수 있습니다
+  if (!끌리는줄 || e.currentTarget === 끌리는줄) { return; }
+  var 목록 = 요소("명단본문");
+  var 대상 = e.currentTarget;
+  var 위치 = 대상.getBoundingClientRect();
+  var 윗쪽인가 = (e.clientY - 위치.top) < (위치.height / 2);   // 마우스가 그 줄의 위쪽 절반이면 앞에, 아래쪽이면 뒤에 놓습니다
+  if (윗쪽인가) { 목록.insertBefore(끌리는줄, 대상); }
+  else { 목록.insertBefore(끌리는줄, 대상.nextSibling); }
+}
+function 드래그끝(e) {
+  if (끌리는줄) { 끌리는줄.classList.remove("끄는중"); }
+  끌리는줄 = null;
+  이름목록갱신();                                 // 순서가 바뀌었으니 자동완성 목록도 다시 정리합니다
+  순서저장();                                       // 다시 만들기를 누르지 않아도, 바뀜 순서를 바로 저장해 둡니다
+}
+
+// 마우스로 마치다(영도/월 등은 그대로 두고) 순서만 바뀜 때 쓰는 저장 함수입니다.
+// [배차표 만들기] 버튼을 누르지 않아도, 페이지를 새로고침하거나 다음에 다시 열었을 때 바뀜 순서가 그대로 남아 있게 해 줍니다.
+function 순서저장() {
+  try {
+    var 저장된값 = localStorage.getItem(저장이름);
+    var 설정 = 저장된값 ? JSON.parse(저장된값) : {};
+    var 명단만 = [];
+    var 명단줄들 = document.querySelectorAll("#명단본문 tr");
+    for (var i = 0; i < 명단줄들.length; i++) {
+      var tr = 명단줄들[i];
+      명단만.push({
+        이름: tr.querySelector(".이름").value, 조: tr.querySelector(".조").value, 차량: tr.querySelector(".차량").value,
+        마지막순번: tr.querySelector(".순번").value, 마지막근무일: 날짜를상대로(tr.querySelector(".근무일").value),
+        마지막휴무일: 날짜를상대로(tr.querySelector(".휴무일").value),
+        희망휴무: tr.querySelector(".희망").value
+      });
+    }
+    설정.기사들 = 명단만;   // 순서가 바뀐 명단만 새로 덮어씁니다 (연도·월·대수 등 다른 값은 그대로 둡니다)
+    localStorage.setItem(저장이름, JSON.stringify(설정));
+  } catch (e) { /* 저장이 안 되어도 화면은 계속 쓸 수 있게 합니다 */ }
+}
+
+function 명단줄추가(k) {
+  k = k || {이름: "", 조: "A", 차량: "", 마지막순번: "", 마지막근무일: "", 마지막휴무일: ""};
   var tr = document.createElement("tr");
-  if (r.이어짐) { tr.className = "이어짐"; }
+  tr.draggable = true;                            // 이 줄을 마우스로 끌 수 있게 합니다
   tr.innerHTML =
-    "<td class='자리칸'><span class='잇기표'></span><select class='조'><option>A</option><option>B</option><option>스페어</option></select></td>" +
-    "<td class='자리칸'><input class='차량' style='width:56px'></td>" +
-    "<td><input class='이름' style='width:78px'></td>" +
-    "<td><input type='number' class='교대일' min='2' max='31'>일</td>" +
-    "<td><input type='number' class='나가는날' min='2' max='31'>일</td>" +
-    "<td><input class='이동노선' style='width:74px'></td>" +
+    "<td class='끌기' title='마우스로 눌러서 위아래로 끌면 순서가 바뀝니다'><span class='손잡이'></span></td>" +
+    "<td><input class='이름' style='width:90px'></td>" +
+    "<td><select class='조'><option>A</option><option>B</option><option>스페어</option></select></td>" +
+    "<td><input class='차량' style='width:64px'></td>" +
     "<td><input type='number' class='순번' min='1' max='3'></td>" +
     "<td><input type='number' class='근무일' min='1' max='31'>일</td>" +
     "<td><input type='number' class='휴무일' min='1' max='31'>일</td>" +
-    "<td><input class='희망' style='width:84px' placeholder='예) 17, 25'></td>" +
-    "<td><button class='작은버튼 교대'>+교대</button><button class='작은버튼 삭제'>삭제</button></td>";
-  tr.querySelector(".조").value = r.조 || "A";
-  tr.querySelector(".차량").value = r.차량 || "";
-  tr.querySelector(".이름").value = r.이름 || "";
-  tr.querySelector(".교대일").value = (r.교대일 === 0 ? "" : (r.교대일 || ""));
-  tr.querySelector(".나가는날").value = (r.나가는날 === 0 ? "" : (r.나가는날 || ""));
-  tr.querySelector(".이동노선").value = r.이동노선 || "";
-  tr.querySelector(".순번").value = r.마지막순번;
-  tr.querySelector(".근무일").value = 상대를날짜로(r.마지막근무일);
-  tr.querySelector(".휴무일").value = 상대를날짜로(r.마지막휴무일);
-  tr.querySelector(".희망").value = r.희망휴무 || "";
-  // [+교대] : 이 줄 바로 아래에 "같은 자리를 이어받는 사람" 줄을 넣습니다
-  tr.querySelector(".교대").addEventListener("click", function () {
-    var 새줄 = 줄만들기({이어짐: true, 조: tr.querySelector(".조").value, 차량: tr.querySelector(".차량").value});
-    tr.parentNode.insertBefore(새줄, tr.nextSibling);
-    줄모양갱신(); 이름목록갱신();
-    새줄.querySelector(".이름").focus();
-  });
-  // [삭제] : 자리의 첫 줄을 지우면, 바로 아래 이어받은 줄이 그 자리의 첫 줄이 됩니다
-  tr.querySelector(".삭제").addEventListener("click", function () {
-    var 다음 = tr.nextSibling;
-    if (!tr.classList.contains("이어짐") && 다음 && 다음.classList && 다음.classList.contains("이어짐")) {
-      다음.classList.remove("이어짐");
-      다음.querySelector(".조").value = tr.querySelector(".조").value;
-      다음.querySelector(".차량").value = tr.querySelector(".차량").value;
-    }
-    tr.remove(); 줄모양갱신(); 이름목록갱신();
-  });
-  tr.querySelector(".조").addEventListener("change", 줄모양갱신);
-  tr.querySelector(".차량").addEventListener("input", 줄모양갱신);
-  return tr;
+    "<td><input class='희망' style='width:110px' placeholder='예) 17, 25'></td>" +
+    "<td><button class='삭제'>삭제</button></td>";
+  tr.querySelector(".이름").value = k.이름;
+  tr.querySelector(".조").value = k.조;
+  tr.querySelector(".차량").value = k.차량;
+  tr.querySelector(".순번").value = k.마지막순번;
+  tr.querySelector(".근무일").value = 상대를날짜로(k.마지막근무일);
+  tr.querySelector(".휴무일").value = 상대를날짜로(k.마지막휴무일);
+  tr.querySelector(".희망").value = k.희망휴무 || "";
+  tr.querySelector(".삭제").addEventListener("click", function () { tr.remove(); 이름목록갱신(); });
+  tr.addEventListener("dragstart", 드래그시작);       // 끌기 시작
+  tr.addEventListener("dragover", 드래그오버);         // 다른 줄 위를 지나갈 때
+  tr.addEventListener("dragend", 드래그끝);            // 마우스를 놓았을 때
+  요소("명단본문").appendChild(tr);
+  이름목록갱신();
+}
+function 변동줄추가(c) {
+  c = c || {날짜: "", 자리: "", 새사람: ""};
+  var tr = document.createElement("tr");
+  tr.innerHTML =
+    "<td><input type='number' class='날짜' min='1' max='31'>일</td>" +
+    "<td><input class='자리' list='이름들' style='width:100px'></td>" +
+    "<td><input class='새사람' style='width:100px'></td>" +
+    "<td><button class='삭제'>삭제</button></td>";
+  tr.querySelector(".날짜").value = c.날짜;
+  tr.querySelector(".자리").value = c.자리;
+  tr.querySelector(".새사람").value = c.새사람;
+  tr.querySelector(".삭제").addEventListener("click", function () { tr.remove(); });
+  요소("변동본문").appendChild(tr);
+}
+function 이름목록갱신() {                               // 변동 입력칸의 이름 자동완성 목록
+  var 목록 = 요소("이름들");
+  목록.innerHTML = "";
+  var 칸들 = document.querySelectorAll("#명단본문 .이름");
+  for (var i = 0; i < 칸들.length; i++) {
+    var 옵션 = document.createElement("option");
+    옵션.value = 칸들[i].value;
+    목록.appendChild(옵션);
+  }
 }
 
-// --- 줄 모양 정리: 이어받은 줄은 윗 자리의 조·차량을 따라가고, 필요 없는 칸은 잠급니다 ---
-function 줄모양갱신() {
-  var 줄들 = document.querySelectorAll("#명단본문 tr");
-  var 현재조 = "A", 현재차량 = "";
-  for (var i = 0; i < 줄들.length; i++) {
-    var tr = 줄들[i];
-    if (i == 0) { tr.classList.remove("이어짐"); }        // 맨 첫 줄은 반드시 자리의 첫 줄입니다
-    var 이어짐 = tr.classList.contains("이어짐");
-    var 조칸 = tr.querySelector(".조"), 차량칸 = tr.querySelector(".차량");
-    if (!이어짐) {
-      현재조 = 조칸.value;
-      if (현재조 == "스페어") { 차량칸.value = ""; }       // 스페어는 배정 차량이 없습니다
-      현재차량 = 차량칸.value;
-      조칸.disabled = false;
-      차량칸.disabled = (현재조 == "스페어");
-      tr.classList.add("자리시작");
-      tr.querySelector(".잇기표").textContent = "";
-    } else {
-      조칸.value = 현재조; 차량칸.value = 현재차량;        // 윗 자리를 그대로 이어받습니다
-      조칸.disabled = true; 차량칸.disabled = true;
-      tr.classList.remove("자리시작");
-      tr.querySelector(".잇기표").textContent = "↳ ";
-    }
-    // 전달 기록은 자리의 첫 줄에서만 의미가 있고, 교대일은 이어받은 줄에서만 씁니다
-    [".순번", ".근무일", ".휴무일"].forEach(function (이름) {
-      var 칸 = tr.querySelector(이름);
-      칸.disabled = 이어짐;
-      if (이어짐) { 칸.value = ""; }
-    });
-    var 교대칸 = tr.querySelector(".교대일");
-    교대칸.disabled = !이어짐;                              // 자리의 첫 줄은 전달부터 계속 근무하므로 잠급니다
-    if (!이어짐) { 교대칸.value = ""; 교대칸.placeholder = "전달부터"; }
-    else { 교대칸.placeholder = "예) 2"; }
-  }
-}
-function 이름목록갱신() {                               // 이름·차량 자동완성 목록
-  var 목록 = 요소("이름들"); 목록.innerHTML = "";
-  var 차량목록 = 요소("차량들"); 차량목록.innerHTML = "";
-  var 본 = {}, 차량본 = {};
-  var 이름칸들 = document.querySelectorAll("#명단본문 .이름");
-  for (var i = 0; i < 이름칸들.length; i++) {
-    var 이름 = 이름칸들[i].value.trim();
-    if (이름 != "" && !본[이름]) { 본[이름] = true; var 옵션 = document.createElement("option"); 옵션.value = 이름; 목록.appendChild(옵션); }
-  }
-  var 차량칸들 = document.querySelectorAll("#명단본문 .차량");
-  for (var j = 0; j < 차량칸들.length; j++) {
-    var 번호 = 차량칸들[j].value.trim();
-    if (번호 != "" && !차량본[번호]) { 차량본[번호] = true; var 옵션2 = document.createElement("option"); 옵션2.value = 번호; 차량목록.appendChild(옵션2); }
-  }
-}
 // --- 화면의 입력칸을 읽어서 "설정"으로 만들기 ---
 function 설정읽기() {
   var 설정 = {
     연도: 숫자("연도"), 월: 숫자("월"), 평일대수: 숫자("평일대수"), 일요일대수: 숫자("일요일대수"),
     만근일수: 숫자("만근일수"), A조날: 요소("A조날").value, 스페어전반조: 요소("스페어전반조").value,
-    전반마지막날: 숫자("전반마지막날"), 토요일대수: 현재토요일값(), 예외대수: {}, 줄들: []
+    전반마지막날: 숫자("전반마지막날"), 토요일대수: 현재토요일값(), 예외대수: {}, 기사들: [], 변동: []
   };
   요소("예외").value.split(",").forEach(function (조각) {
     var 쪼갬 = 조각.split(":");
@@ -828,20 +690,21 @@ function 설정읽기() {
       if (!isNaN(날짜) && !isNaN(대수)) { 설정.예외대수[날짜] = 대수; }
     }
   });
-  var 줄들 = document.querySelectorAll("#명단본문 tr");
-  for (var i = 0; i < 줄들.length; i++) {
-    var tr = 줄들[i];
-    var 값 = function (c) { return tr.querySelector(c).value; };
-    // 아무것도 안 적은 빈 줄은 건너뜁니다
-    if (값(".이름").trim() == "" && 값(".교대일") == "" && 값(".나가는날") == "" && 값(".차량").trim() == "") { continue; }
-    설정.줄들.push({
-      이어짐: tr.classList.contains("이어짐"),
-      이름: 값(".이름"), 조: 값(".조"), 차량: 값(".차량"),
-      교대일: 값(".교대일"), 나가는날: 값(".나가는날"), 이동노선: 값(".이동노선"),
-      마지막순번: 값(".순번"),
-      마지막근무일: 날짜를상대로(값(".근무일")), 마지막휴무일: 날짜를상대로(값(".휴무일")),
-      희망휴무: 값(".희망")
+  var 명단줄들 = document.querySelectorAll("#명단본문 tr");
+  for (var i = 0; i < 명단줄들.length; i++) {
+    var tr = 명단줄들[i];
+    설정.기사들.push({
+      이름: tr.querySelector(".이름").value, 조: tr.querySelector(".조").value, 차량: tr.querySelector(".차량").value,
+      마지막순번: tr.querySelector(".순번").value, 마지막근무일: 날짜를상대로(tr.querySelector(".근무일").value),
+      마지막휴무일: 날짜를상대로(tr.querySelector(".휴무일").value),
+      희망휴무: tr.querySelector(".희망").value
     });
+  }
+  var 변동줄들 = document.querySelectorAll("#변동본문 tr");
+  for (var j = 0; j < 변동줄들.length; j++) {
+    var 줄 = 변동줄들[j];
+    if (줄.querySelector(".날짜").value == "" && 줄.querySelector(".자리").value == "") { continue; }   // 빈 줄은 건너뜀
+    설정.변동.push({날짜: 줄.querySelector(".날짜").value, 자리: 줄.querySelector(".자리").value, 새사람: 줄.querySelector(".새사람").value});
   }
   return 설정;
 }
@@ -862,113 +725,56 @@ function 설정채우기(설정) {
   전월표시갱신();
   토요일칸그리기(설정.토요일대수);
   요소("명단본문").innerHTML = "";
-  (설정.줄들 || []).forEach(function (r) { 요소("명단본문").appendChild(줄만들기(r)); });
-  줄모양갱신();
-  이름목록갱신();
+  설정.기사들.forEach(function (k) { 명단줄추가(k); });
+  요소("변동본문").innerHTML = "";
+  설정.변동.forEach(function (c) { 변동줄추가(c); });
 }
 
-// --- 예전(04 이전) 저장값을 새 방식으로 바꿔 줍니다 ---
-function 예전설정바꾸기(옛) {
-  if (옛.줄들) { return {설정: 옛, 안내: ""}; }                   // 이미 새 방식이면 그대로
-  var 새 = JSON.parse(JSON.stringify(옛));
-  새.줄들 = (옛.기사들 || []).map(function (k) {
-    return {이어짐: false, 이름: k.이름, 조: k.조, 차량: k.차량, 교대일: "", 나가는날: "", 이동노선: "",
-            마지막순번: k.마지막순번, 마지막근무일: k.마지막근무일, 마지막휴무일: k.마지막휴무일, 희망휴무: k.희망휴무 || ""};
-  });
-  var 옛변동수 = (옛.변동 || []).length;
-  delete 새.기사들; delete 새.변동; delete 새.지원기사;
-  return {설정: 새, 안내: 옛변동수 > 0
-    ? "예전 방식으로 입력했던 변동 " + 옛변동수 + "건은 지웠습니다. 사람이 바뀌는 자리는 그 줄의 [+교대]를 눌러 다시 넣어 주세요."
-    : "명단을 새 방식(한 줄 = 한 사람)으로 옮겼습니다."};
-}
 // --- 결과를 표로 그리기 ---
 function 칸클래스(R, 일) {
   if (R.날[일].요일 == 6) { return "토"; }
   if (R.날[일].요일 == 0) { return "일"; }
   return "";
 }
-function 전달칸클래스(R, 번호) {                          // 전달 마지막 3일 칸의 요일 색
-  var 요일 = new Date(R.연도, R.월 - 2, R.전월일수 - 2 + 번호).getDay();
-  return "전달 " + (요일 == 6 ? "토" : (요일 == 0 ? "일" : ""));
-}
-function 값칸(값, 클래스) {                                // 숫자·ㅎ·휴 한 칸
-  var 글자 = "";
-  if (값 === "ㅎ") { 글자 = "ㅎ"; 클래스 += " 휴"; }
-  else if (값 === "휴") { 글자 = "휴"; 클래스 += " 희망"; }
-  else if (값) { 글자 = 값; }
-  return "<td class='" + 클래스 + "'>" + 글자 + "</td>";
-}
-function 행그리기(R, 행) {
-  var 칸들 = "";
-  // (1) 전달 3일 칸: 명단에 적은 마지막 근무일(순번)·휴무일만 보여 줍니다
-  for (var i = 0; i < 3; i++) { 칸들 += "<td class='" + 전달칸클래스(R, i) + "'>" + (행.전달칸[i] === "" ? "" : 행.전달칸[i]) + "</td>"; }
-  // (2) 날짜 칸: 다른 노선으로 이동한 사람은 이동한 날부터 끝까지 "5-2번"을 한 칸으로 보여 줍니다
-  var 떠남글 = (행.떠남 && 행.떠남.노선 != "") ? 행.떠남.노선 : "";
-  var 일 = 1;
-  while (일 <= R.마지막날) {
-    if (떠남글 != "" && 행.떠남.날짜 == 일) {
-      칸들 += "<td colspan='" + (R.마지막날 - 일 + 1) + "' class='메모'>" + 안전(떠남글) + "</td>";
-      break;
-    }
-    칸들 += 값칸(행.칸[일 - 1], 칸클래스(R, 일));
-    일++;
-  }
-  return "<tr class='" + (행.첫줄 ? "스페어첫줄 " : "") + (행.끝줄 ? "스페어끝줄" : "") + "'><td>" + 안전(행.차량) + "</td><td>" + 안전(행.이름) + "</td><td>" +
-         안전(행.조표시) + "</td><td class='근무일수칸'>" + 행.근무일.toFixed(1) + "</td>" + 칸들 + "</tr>";
-}
-
 function 화면그리기(R) {
   if (R.오류들.length > 0) {
     요소("제목").textContent = "";
     요소("표자리").innerHTML = "";
-    요소("합계자리").innerHTML = "";
     var 글 = "<p class='경고'>입력을 확인해 주세요:</p><ul>";
     R.오류들.forEach(function (g) { 글 += "<li class='경고'>" + 안전(g) + "</li>"; });
     요소("검산").innerHTML = 글 + "</ul>";
     return;
   }
   요소("제목").textContent = R.월 + "월 1-5번 배차표";
-  var 일, i;
   var 표 = "<table class='표'><tr><th>차량번호</th><th>성명</th><th>근무조</th><th>근무일수</th>";
-  for (i = 0; i < 3; i++) { 표 += "<th class='" + 전달칸클래스(R, i) + "'>" + (R.전월일수 - 2 + i) + "</th>"; }
+  var 일;
   for (일 = 1; 일 <= R.마지막날; 일++) { 표 += "<th class='" + 칸클래스(R, 일) + "'>" + 일 + "</th>"; }
-  표 += "</tr><tr><td colspan='4'>필요 대수</td><td></td><td></td><td></td>";
+  표 += "</tr><tr><td colspan='4'>필요 대수</td>";
   for (일 = 1; 일 <= R.마지막날; 일++) { 표 += "<td class='" + 칸클래스(R, 일) + "'>" + R.날[일].대수 + "</td>"; }
   표 += "</tr><tr><td colspan='4'>요일</td>";
-  for (i = 0; i < 3; i++) { 표 += "<td class='" + 전달칸클래스(R, i) + "'>" + 요일글자[new Date(R.연도, R.월 - 2, R.전월일수 - 2 + i).getDay()] + "</td>"; }
   for (일 = 1; 일 <= R.마지막날; 일++) { 표 += "<td class='" + 칸클래스(R, 일) + "'>" + 요일글자[R.날[일].요일] + "</td>"; }
   표 += "</tr>";
-  R.행들.forEach(function (행, 번호) {                      // 스페어 줄 묶음의 맨 위/맨 아래 줄을 표시해 둡니다
-    var 앞 = R.행들[번호 - 1], 뒤 = R.행들[번호 + 1];
-    행.첫줄 = 행.스페어줄 && !(앞 && 앞.스페어줄);
-    행.끝줄 = 행.스페어줄 && !(뒤 && 뒤.스페어줄);
-    표 += 행그리기(R, 행);
+  R.행들.forEach(function (행) {
+    var 칸들 = "";
+    for (var d = 1; d <= R.마지막날; d++) {
+      var 값 = 행.칸[d - 1], 글자 = "", 클래스 = 칸클래스(R, d);
+      if (값 === "ㅎ") { 글자 = "ㅎ"; 클래스 += " 휴"; }
+      else if (값 === "휴") { 글자 = "휴"; 클래스 += " 희망"; }
+      else if (값) { 글자 = 값; }
+      칸들 += "<td class='" + 클래스 + "'>" + 글자 + "</td>";
+    }
+    표 += "<tr class='" + (행.스페어줄 ? "스페어줄" : "") + "'><td>" + 안전(행.차량) + "</td><td>" + 안전(행.이름) + "</td><td>" +
+          안전(행.조표시) + "</td><td>" + 행.근무일.toFixed(1) + "</td>" + 칸들 + "</tr>";
   });
   R.공석행들.forEach(function (행) {
-    var 칸들 = "<td></td><td></td><td></td>";
+    var 칸들 = "";
     for (var d = 1; d <= R.마지막날; d++) {
       칸들 += "<td class='" + 칸클래스(R, d) + " 경고'>" + (행.칸[d - 1] === undefined ? "" : 행.칸[d - 1]) + "</td>";
     }
     표 += "<tr><td></td><td class='경고'>(공석) " + 안전(행.자리) + " 자리</td><td></td><td></td>" + 칸들 + "</tr>";
   });
-  // 합계 줄: 하루에 실제로 나가는 인원 (필요 대수와 다르면 빨간색)
-  var 전체일수 = 0;
-  R.행들.forEach(function (행) { 전체일수 += 행.근무일; });
-  표 += "<tr class='합계줄'><td colspan='3'>합계</td><td>" + 전체일수.toFixed(1) + "</td><td></td><td></td><td></td>";
-  for (일 = 1; 일 <= R.마지막날; 일++) {
-    표 += "<td class='" + (R.일별합계[일] != R.날[일].대수 ? "미달" : "") + "'>" + R.일별합계[일] + "</td>";
-  }
-  표 += "</tr></table><p class='작은글씨'>표를 마우스로 끌어서 선택한 뒤 Ctrl+C로 복사하면 엑셀에 붙여넣을 수 있습니다. 총 필요 근무 " + R.총필요 + "회. (빨간 숫자 = 그날 필요 대수와 다름)</p>";
+  표 += "</table><p class='작은글씨'>표를 마우스로 끌어서 선택한 뒤 Ctrl+C로 복사하면 엑셀에 붙여넣을 수 있습니다. 총 필요 근무 " + R.총필요 + "회.</p>";
   요소("표자리").innerHTML = 표;
-
-  // 구분별(토요일·일요일·평일) 일수와 필요 대수 합계
-  var 합계표 = "<table class='표 작은표'><tr><th>구분</th><th>일수</th><th>필요 대수 합</th></tr>";
-   ["토요일", "일요일", "평일", "특별한 날"].forEach(function (이름) {
-    if (R.구분[이름].일수 == 0) { return; }     // [수정 20261111-01] 특별한 날이 없으면 그 줄은 안 보여 줍니다
-    합계표 += "<tr><td>" + 이름 + "</td><td>" + R.구분[이름].일수 + "</td><td>" + R.구분[이름].대수 + "</td></tr>";
-  });
-  합계표 += "<tr class='합계줄'><td>합계</td><td>" + R.마지막날 + "</td><td>" + R.총필요 + "</td></tr></table>";
-  요소("합계자리").innerHTML = 합계표;
 
   var 검산글 = "";
   if (R.경고들.length == 0) {
@@ -989,14 +795,9 @@ function 화면그리기(R) {
 // --- 버튼 동작 ---
 function 만들기() {
   var 설정 = 설정읽기();
-  var 변환 = 합친표를설정으로(설정);                      // 합친 표를 계산이 쓰는 모양으로 바꿉니다
-  마지막결과 = null;
-  if (변환.오류.length > 0) { 화면그리기({오류들: 변환.오류}); }
-  else {
-    var R = 계산(변환.설정);
-    화면그리기(R);
-    if (R.오류들.length == 0) { 마지막결과 = {R: R, 설정: 설정}; }
-  }
+  var R = 계산(설정);
+  화면그리기(R);
+  if (R.오류들.length == 0) { 마지막결과 = {R: R, 설정: 설정}; }
   try { localStorage.setItem(저장이름, JSON.stringify(설정)); } catch (e) { /* 저장이 안 되어도 계속 진행합니다 */ }
 }
 function 다음달로() {
@@ -1006,7 +807,6 @@ function 다음달로() {
   마지막결과 = null;
   요소("제목").textContent = "";
   요소("표자리").innerHTML = "";
-  요소("합계자리").innerHTML = "";
   요소("검산").innerHTML = "";
   요소("안내줄").textContent = 새설정.월 + "월 설정으로 넘겼습니다. 토요일 대수를 확인·수정한 뒤 [배차표 만들기]를 눌러 주세요.";
   try { localStorage.setItem(저장이름, JSON.stringify(새설정)); } catch (e) { }
@@ -1018,116 +818,78 @@ function 처음으로() {
   만들기();
 }
 
-/* ============================================================
-   [C] 영어 자판 → 한글 변환: 한/영 키를 안 눌러 영어로 쳐도 한글로 바꿔 줍니다
-       예) dlgusdn → 이현우  (두벌식 자판 기준)
-   ============================================================ */
-var 영자음 = {r:"ㄱ",R:"ㄲ",s:"ㄴ",e:"ㄷ",E:"ㄸ",f:"ㄹ",a:"ㅁ",q:"ㅂ",Q:"ㅃ",t:"ㅅ",T:"ㅆ",d:"ㅇ",w:"ㅈ",W:"ㅉ",c:"ㅊ",z:"ㅋ",x:"ㅌ",v:"ㅍ",g:"ㅎ"};
-var 영모음 = {k:"ㅏ",o:"ㅐ",i:"ㅑ",O:"ㅒ",j:"ㅓ",p:"ㅔ",u:"ㅕ",P:"ㅖ",h:"ㅗ",y:"ㅛ",n:"ㅜ",b:"ㅠ",m:"ㅡ",l:"ㅣ"};
-var 초성표 = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
-var 중성표 = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ";
-var 종성표 = ["","ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-var 겹모음 = {"ㅗㅏ":"ㅘ","ㅗㅐ":"ㅙ","ㅗㅣ":"ㅚ","ㅜㅓ":"ㅝ","ㅜㅔ":"ㅞ","ㅜㅣ":"ㅟ","ㅡㅣ":"ㅢ"};
-var 겹받침 = {"ㄱㅅ":"ㄳ","ㄴㅈ":"ㄵ","ㄴㅎ":"ㄶ","ㄹㄱ":"ㄺ","ㄹㅁ":"ㄻ","ㄹㅂ":"ㄼ","ㄹㅅ":"ㄽ","ㄹㅌ":"ㄾ","ㄹㅍ":"ㄿ","ㄹㅎ":"ㅀ","ㅂㅅ":"ㅄ"};
+// ----- 배차명령서(인쇄용 날짜별 카드) 만들기 -----
+function 명령서만들기() {
+  if (마지막결과 == null) { alert("먼저 [배차표 만들기]를 눌러 주세요."); return; }
+  var R = 마지막결과.R;
+  var 시간표 = {1: 요소("시간1").value || "", 2: 요소("시간2").value || "", 3: 요소("시간3").value || ""};
 
-function 영타를한글로(글) {
-  // 1단계: 글자를 "자모(ㄱ,ㅏ 같은 낱글자)" 목록으로 풀어 놓습니다
-  var 자모 = [];
-  for (var i = 0; i < 글.length; i++) {
-    var 문자 = 글.charAt(i), 코드 = 글.charCodeAt(i);
-    if (코드 >= 0xAC00 && 코드 <= 0xD7A3) {            // 이미 완성된 한글(예: 김)은 낱글자로 다시 풉니다
-      var 번호 = 코드 - 0xAC00;
-      자모.push(초성표.charAt(Math.floor(번호 / 588)));
-      자모.push(중성표.charAt(Math.floor((번호 % 588) / 28)));
-      if (번호 % 28 > 0) { 자모.push(종성표[번호 % 28]); }
-    } else if (영자음[문자] || 영모음[문자]) {
-      자모.push(영자음[문자] || 영모음[문자]);
-    } else if (영자음[문자.toLowerCase()] || 영모음[문자.toLowerCase()]) {
-      자모.push(영자음[문자.toLowerCase()] || 영모음[문자.toLowerCase()]);
-    } else {
-      자모.push(문자);                                   // 숫자·공백 등은 그대로 둡니다
+  // 그날 그 순번에 누가·무슨 차량으로 들어가는지 찾습니다 (근무자 + 공석 모두 확인)
+  function 그날자리찾기(일, 순번) {
+    var 찾음 = null;
+    R.행들.forEach(function (행) { if (행.칸[일 - 1] === 순번) { 찾음 = {차량: 행.차량, 승무원: 행.이름}; } });
+  R.공석행들.forEach(function (행) { if (행.칸[일 - 1] === 순번) { 찾음 = {차량: "", 승무원: "(공석) " + 행.자리}; } });
+    return 찾음;
+  }
+
+  var 글 = "<h2 style='text-align:center'>배차명령서 &nbsp; 1-5번</h2><div class='명령서랩'>";   // 한 장에 다 들어가게 묶음을 하나만 씁니다
+  var 예비차번호 = 요소("예비차").value || "";       // 스페어처럼 고정 차량이 없는 사람은 이 차로 표시됩니다
+  for (var 일 = 1; 일 <= R.마지막날; 일++) {
+    var 요일번호 = R.날[일].요일;
+    var 요일칸클래스 = (요일번호 == 6) ? "토" : (요일번호 == 0) ? "일" : "";
+    글 += "<div class='명령서카드 " + 요일칸클래스 + "'>";
+    글 += "<div class='날짜줄'>" + String(R.연도).slice(2) + "년 " + R.월 + "월 " + 일 + "일(" + 요일글자[요일번호] + ")</div>";
+    글 += "<table><tr><th>순</th><th>차량</th><th>시간</th><th>승무원</th></tr>";
+    for (var 순 = 1; 순 <= R.날[일].대수; 순++) {
+      var 자리 = 그날자리찾기(일, 순);
+      // 차량 표시: 고정 차량이 있으면 그 차, 없으면(스페어) 예비차, 사람 자체가 없으면(공석) 빈칸
+      var 차량칸 = 자리 ? 안전(자리.차량 || 예비차번호) : "";
+      var 승무원칸 = 자리 ? 안전(자리.승무원) : "";
+      글 += "<tr><td>" + 순 + "</td><td>" + 차량칸 + "</td><td>" + 안전(시간표[순] || "") + "</td><td>" + 승무원칸 + "</td></tr>";
     }
+    글 += "</table></div>";
   }
+  글 += "</div>";
+  요소("명령서자리").innerHTML = 글;
 
-  // 2단계: 낱글자를 차례로 모아서 완성 글자로 만듭니다
-  var 결과 = "", 초 = -1, 중 = -1, 종 = 0;
-  function 내보내기() {                                  // 지금까지 모은 글자를 결과에 붙입니다
-    if (초 >= 0 && 중 >= 0) { 결과 += String.fromCharCode(0xAC00 + (초 * 21 + 중) * 28 + 종); }
-    else if (초 >= 0) { 결과 += 초성표.charAt(초); }
-    else if (중 >= 0) { 결과 += 중성표.charAt(중); }
-    초 = -1; 중 = -1; 종 = 0;
-  }
-  자모.forEach(function (j) {
-    var 초번호 = 초성표.indexOf(j), 중번호 = 중성표.indexOf(j), 종번호 = 종성표.indexOf(j);
-    if (j.length == 1 && 중번호 >= 0) {                  // ----- 모음이 들어온 경우 -----
-      if (초 >= 0 && 중 >= 0 && 종 > 0) {                // 받침이 있으면 받침이 다음 글자 첫소리로 넘어갑니다
-        var 받침글자 = 종성표[종], 넘길 = 받침글자, 남길 = 0;
-        for (var 키 in 겹받침) { if (겹받침[키] == 받침글자) { 넘길 = 키.charAt(1); 남길 = 종성표.indexOf(키.charAt(0)); } }
-        종 = 남길; 내보내기(); 초 = 초성표.indexOf(넘길); 중 = 중번호;
-      } else if (중 >= 0 && 겹모음[중성표.charAt(중) + j]) { 중 = 중성표.indexOf(겹모음[중성표.charAt(중) + j]); }   // ㅗ+ㅏ=ㅘ
-      else if (중 >= 0) { 내보내기(); 중 = 중번호; }
-      else { 중 = 중번호; }
-    } else if (j.length == 1 && (초번호 >= 0 || 종번호 > 0)) {   // ----- 자음이 들어온 경우 -----
-      if (초 >= 0 && 중 >= 0 && 종 == 0 && 종번호 > 0) { 종 = 종번호; }                  // 받침이 됩니다
-      else if (초 >= 0 && 중 >= 0 && 종 > 0 && 겹받침[종성표[종] + j]) { 종 = 종성표.indexOf(겹받침[종성표[종] + j]); }   // ㄹ+ㄱ=ㄺ
-      else { 내보내기(); if (초번호 >= 0) { 초 = 초번호; } else { 결과 += j; } }
-    } else { 내보내기(); 결과 += j; }                    // 한글이 아닌 글자
-  });
-  내보내기();
-  return 결과;
-}
-
-// Caps Lock(대문자 고정) 상태를 기억해 둡니다
-// 이유: Caps Lock이 켜져 있으면 r,e,q,t,w가 R,E,Q,T,W로 들어와서 ㄱ,ㄷ,ㅂ,ㅅ,ㅈ이 쌍자음(ㄲ,ㄸ,ㅃ,ㅆ,ㅉ)으로 바뀌어 버립니다
-var 캡스켜짐 = false;
-function 캡스확인(e) {
-  if (e.getModifierState) {
-    캡스켜짐 = e.getModifierState("CapsLock");
-    요소("캡스안내").style.display = 캡스켜짐 ? "block" : "none";     // 켜져 있으면 맨 위에 경고를 보여 줍니다
+  // ---- A4 한 장에 다 들어가도록, 지금 만든 내용의 실제 높이를 쟬 인쇄 전용 축소 비율을 정해 둡니다 ----
+  var 랩 = document.querySelector("#명령서자리 .명령서랩");
+  if (랩) {
+    var A4세로픽셀 = (297 - 10) / 25.4 * 96;              // A4 세로(297mm)에서 위아래 여백(5mm×2)을 빼고 화면 픽셀으로 바꾽니다
+    var 실제높이 = 랩.scrollHeight;
+    var 배율 = (실제높이 > A4세로픽셀) ? (A4세로픽셀 / 실제높이) : 1;   // 한 장보다 길 때만 줄입니다 (1이면 그대로)
+    var 기존스타일 = document.getElementById("인쇄맞춤스타일");
+    if (기존스타일) { 기존스타일.remove(); }                 // 전에 만든 적 있으면 지우고 새로 만듭니다
+    var 새스타일 = document.createElement("style");
+    새스타일.id = "인쇄맞춤스타일";
+    새스타일.media = "print";                              // 이 스타일은 인쇄할 때만 적용됩니다 (화면에서는 원래 크기 그대로)
+    새스타일.textContent =
+      "#명령서자리 .명령서랩 { transform: scale(" + 배율.toFixed(3) + "); transform-origin: top left; width: " + (100 / 배율).toFixed(2) + "%; }";
+    document.head.appendChild(새스타일);
   }
 }
-document.addEventListener("keydown", 캡스확인);
-document.addEventListener("keyup", 캡스확인);
-
-// 이름 칸(명단 이름, 변동 성명)에 영어가 들어오면 바로 한글로 바꿉니다
-document.addEventListener("input", function (e) {
-  if (e.isComposing) { return; }                         // 한글을 조립하는 중이면 건드리지 않습니다
-  var 칸 = e.target;
-  var 이름칸인가 = 칸.classList && (칸.classList.contains("이름") || 칸.classList.contains("성명"));
-  if (이름칸인가 && /[A-Za-z]/.test(칸.value)) {         // 영어 글자가 들어 있을 때만 바꿉니다
-    var 글 = 칸.value;
-    if (캡스켜짐) {                                      // Caps Lock이 켜져 있으면 대문자/소문자를 서로 뒤집어서 원래 누른 키로 되돌립니다
-      글 = 글.replace(/[A-Za-z]/g, function (c) { return (c == c.toUpperCase()) ? c.toLowerCase() : c.toUpperCase(); });
-    }
-    칸.value = 영타를한글로(글);
-    이름목록갱신();                                      // 자동완성 이름 목록도 새로 고칩니다
-  }
-});
 
 // --- 시작할 때 한 번 실행 ---
 요소("만들기").addEventListener("click", 만들기);
+요소("명령서버튼").addEventListener("click", 명령서만들기);
+요소("인쇄버튼").addEventListener("click", function () { window.print(); });
 요소("다음달").addEventListener("click", 다음달로);
 요소("초기값").addEventListener("click", 처음으로);
-요소("자리추가").addEventListener("click", function () {
-  요소("명단본문").appendChild(줄만들기());              // 새 자리(첫 줄)를 맨 아래에 넣습니다
-  줄모양갱신(); 이름목록갱신();
-});
+요소("명단추가").addEventListener("click", function () { 명단줄추가(); });
+요소("변동추가").addEventListener("click", function () { 변동줄추가(); });
 요소("연도").addEventListener("change", function () { 전월표시갱신(); 토요일칸그리기(현재토요일값()); });
 요소("월").addEventListener("change", function () { 전월표시갱신(); 토요일칸그리기(현재토요일값()); });
 요소("명단본문").addEventListener("input", 이름목록갱신);
 
 var 시작설정 = 처음설정;
-var 시작안내 = "";
 try {
   var 저장된 = localStorage.getItem(저장이름);
-  if (저장된) {
-    var 바꾼 = 예전설정바꾸기(JSON.parse(저장된));          // 지난번에 쓰던 설정이 있으면 그것으로 시작
-    시작설정 = 바꾼.설정; 시작안내 = 바꾼.안내;
-  }
+  if (저장된) { 시작설정 = JSON.parse(저장된); }       // 지난번에 쓰던 설정이 있으면 그것으로 시작
 } catch (e) { }
 설정채우기(시작설정);
 만들기();
-if (시작안내 != "") { 요소("안내줄").textContent = 시작안내; }
 </script>
 </body>
 </html>
+
+</body></html>
